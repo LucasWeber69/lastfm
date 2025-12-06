@@ -94,7 +94,10 @@ async fn main() {
         .allow_origin(
             allowed_origins
                 .iter()
-                .map(|origin| origin.parse::<HeaderValue>().unwrap())
+                .map(|origin| {
+                    origin.parse::<HeaderValue>()
+                        .expect(&format!("Invalid ALLOWED_ORIGINS value: {}", origin))
+                })
                 .collect::<Vec<_>>(),
         )
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
