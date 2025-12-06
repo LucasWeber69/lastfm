@@ -9,6 +9,7 @@ use lastfm_dating_backend::{
     middleware::auth_middleware,
     routes,
     services::{AuthService, CompatibilityService, LastFmService, MatchService, PhotoService},
+    AppState,
 };
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
@@ -43,11 +44,22 @@ async fn main() {
     // Initialize services
     let auth_service = Arc::new(AuthService::new(config.clone()));
     let lastfm_service = Arc::new(LastFmService::new(config.clone()));
-    let compatibility_service = Arc::new(CompatibilityService::new((*lastfm_service).clone()));
-    let match_service = Arc::new(MatchService::new((*compatibility_service).clone()));
+    let compatibility_service = Arc::new(CompatibilityService::new(lastfm_service.clone()));
+    let match_service = Arc::new(MatchService::new(compatibility_service.clone()));
     let photo_service = Arc::new(PhotoService::new(config.clone()));
 
     let config_arc = Arc::new(config);
+
+    // Create shared app state
+    let app_state = AppState {
+        pool,
+        config: config_arc.clone(),
+        auth_service,
+        lastfm_service,
+        compatibility_service,
+        match_service,
+        photo_service,
+    };
 
     // Build application routes
     let app = Router::new()
@@ -75,12 +87,7 @@ async fn main() {
         // Add CORS
         .layer(CorsLayer::permissive())
         // Add shared state
-        .with_state(auth_service)
-        .with_state(lastfm_service)
-        .with_state(compatibility_service)
-        .with_state(match_service)
-        .with_state(photo_service)
-        .with_state(pool);
+        .with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind(format!("{}:{}", host, port))
         .await

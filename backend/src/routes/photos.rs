@@ -1,24 +1,21 @@
 use crate::{
-    db::DbPool,
     errors::AppError,
     middleware::AuthUser,
     models::CreatePhoto,
-    services::PhotoService,
+    AppState,
 };
 use axum::{
     extract::{Path, State},
     Extension, Json,
 };
-use std::sync::Arc;
 
 pub async fn create_photo(
     Extension(auth_user): Extension<AuthUser>,
-    State(photo_service): State<Arc<PhotoService>>,
-    State(pool): State<DbPool>,
+    State(app_state): State<AppState>,
     Json(create_photo): Json<CreatePhoto>,
 ) -> Result<Json<crate::models::Photo>, AppError> {
-    let photo = photo_service
-        .add_photo(&pool, &auth_user.user_id, create_photo)
+    let photo = app_state.photo_service
+        .add_photo(&app_state.pool, &auth_user.user_id, create_photo)
         .await?;
 
     Ok(Json(photo))
@@ -26,21 +23,19 @@ pub async fn create_photo(
 
 pub async fn get_user_photos(
     Path(user_id): Path<String>,
-    State(photo_service): State<Arc<PhotoService>>,
-    State(pool): State<DbPool>,
+    State(app_state): State<AppState>,
 ) -> Result<Json<Vec<crate::models::Photo>>, AppError> {
-    let photos = photo_service.get_user_photos(&pool, &user_id).await?;
+    let photos = app_state.photo_service.get_user_photos(&app_state.pool, &user_id).await?;
     Ok(Json(photos))
 }
 
 pub async fn delete_photo(
     Extension(auth_user): Extension<AuthUser>,
     Path(photo_id): Path<String>,
-    State(photo_service): State<Arc<PhotoService>>,
-    State(pool): State<DbPool>,
+    State(app_state): State<AppState>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    photo_service
-        .delete_photo(&pool, &photo_id, &auth_user.user_id)
+    app_state.photo_service
+        .delete_photo(&app_state.pool, &photo_id, &auth_user.user_id)
         .await?;
 
     Ok(Json(serde_json::json!({

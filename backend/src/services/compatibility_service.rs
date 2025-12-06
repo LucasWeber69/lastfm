@@ -5,13 +5,14 @@ use crate::{
     services::lastfm_service::LastFmService,
 };
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 pub struct CompatibilityService {
-    lastfm_service: LastFmService,
+    lastfm_service: Arc<LastFmService>,
 }
 
 impl CompatibilityService {
-    pub fn new(lastfm_service: LastFmService) -> Self {
+    pub fn new(lastfm_service: Arc<LastFmService>) -> Self {
         Self { lastfm_service }
     }
 

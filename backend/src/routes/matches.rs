@@ -1,24 +1,21 @@
 use crate::{
-    db::DbPool,
     errors::AppError,
     middleware::AuthUser,
     models::CreateLike,
-    services::MatchService,
+    AppState,
 };
 use axum::{
     extract::{Path, State},
     Extension, Json,
 };
-use std::sync::Arc;
 
 pub async fn create_like(
     Extension(auth_user): Extension<AuthUser>,
-    State(match_service): State<Arc<MatchService>>,
-    State(pool): State<DbPool>,
+    State(app_state): State<AppState>,
     Json(create_like): Json<CreateLike>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let match_result = match_service
-        .create_like(&pool, &auth_user.user_id, &create_like.to_user_id)
+    let match_result = app_state.match_service
+        .create_like(&app_state.pool, &auth_user.user_id, &create_like.to_user_id)
         .await?;
 
     match match_result {
@@ -36,21 +33,19 @@ pub async fn create_like(
 
 pub async fn get_matches(
     Extension(auth_user): Extension<AuthUser>,
-    State(match_service): State<Arc<MatchService>>,
-    State(pool): State<DbPool>,
+    State(app_state): State<AppState>,
 ) -> Result<Json<Vec<crate::models::Match>>, AppError> {
-    let matches = match_service.get_user_matches(&pool, &auth_user.user_id).await?;
+    let matches = app_state.match_service.get_user_matches(&app_state.pool, &auth_user.user_id).await?;
     Ok(Json(matches))
 }
 
 pub async fn delete_match(
     Extension(auth_user): Extension<AuthUser>,
     Path(match_id): Path<String>,
-    State(match_service): State<Arc<MatchService>>,
-    State(pool): State<DbPool>,
+    State(app_state): State<AppState>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    match_service
-        .delete_match(&pool, &match_id, &auth_user.user_id)
+    app_state.match_service
+        .delete_match(&app_state.pool, &match_id, &auth_user.user_id)
         .await?;
 
     Ok(Json(serde_json::json!({

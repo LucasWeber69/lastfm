@@ -1,16 +1,14 @@
 use crate::{
-    db::DbPool,
     errors::AppError,
     middleware::AuthUser,
     models::User,
-    services::{CompatibilityService, LastFmService},
+    AppState,
 };
 use axum::{
     extract::State,
     Extension, Json,
 };
 use serde::Serialize;
-use std::sync::Arc;
 
 #[derive(Debug, Serialize)]
 pub struct DiscoverProfile {
@@ -26,13 +24,11 @@ pub struct DiscoverProfile {
 
 pub async fn get_discover_profiles(
     Extension(auth_user): Extension<AuthUser>,
-    State(lastfm_service): State<Arc<LastFmService>>,
-    State(compatibility_service): State<Arc<CompatibilityService>>,
-    State(pool): State<DbPool>,
+    State(app_state): State<AppState>,
 ) -> Result<Json<Vec<DiscoverProfile>>, AppError> {
     // Get current user's top artists
-    let current_user_artists = lastfm_service
-        .get_user_top_artists(&pool, &auth_user.user_id, 50)
+    let current_user_artists = app_state.lastfm_service
+        .get_user_top_artists(&app_state.pool, &auth_user.user_id, 50)
         .await?;
 
     if current_user_artists.is_empty() {
@@ -51,15 +47,15 @@ pub async fn get_discover_profiles(
     .bind(&auth_user.user_id)
     .bind(&auth_user.user_id)
     .bind(&auth_user.user_id)
-    .fetch_all(&pool)
+    .fetch_all(&app_state.pool)
     .await?;
 
     let mut profiles = Vec::new();
 
     for user in potential_matches {
         // Get compatibility score
-        let compatibility_score = compatibility_service
-            .calculate_compatibility(&pool, &auth_user.user_id, &user.id)
+        let compatibility_score = app_state.compatibility_service
+            .calculate_compatibility(&app_state.pool, &auth_user.user_id, &user.id)
             .await
             .unwrap_or(0.0);
 
@@ -69,12 +65,12 @@ pub async fn get_discover_profiles(
         }
 
         // Get user's top artists
-        let user_artists = lastfm_service
-            .get_user_top_artists(&pool, &user.id, 10)
+        let user_artists = app_state.lastfm_service
+            .get_user_top_artists(&app_state.pool, &user.id, 10)
             .await?;
 
         // Get common artists
-        let common_artists = compatibility_service.get_common_artists(
+        let common_artists = app_state.compatibility_service.get_common_artists(
             &current_user_artists,
             &user_artists,
             3,
@@ -85,13 +81,15 @@ pub async fn get_discover_profiles(
             "SELECT * FROM photos WHERE user_id = ? ORDER BY position ASC"
         )
         .bind(&user.id)
-        .fetch_all(&pool)
+        .fetch_all(&app_state.pool)
         .await?;
 
+        let age = user.age();
+        
         profiles.push(DiscoverProfile {
             id: user.id,
             name: user.name,
-            age: user.age(),
+            age,
             bio: user.bio,
             photos: photos.into_iter().map(|p| p.url).collect(),
             top_artists: user_artists.into_iter().take(5).map(|a| a.name).collect(),

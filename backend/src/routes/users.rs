@@ -1,8 +1,8 @@
 use crate::{
-    db::DbPool,
     errors::AppError,
     middleware::AuthUser,
     models::{UpdateUser, User},
+    AppState,
 };
 use axum::{
     extract::{Path, State},
@@ -11,11 +11,11 @@ use axum::{
 
 pub async fn get_me(
     Extension(auth_user): Extension<AuthUser>,
-    State(pool): State<DbPool>,
+    State(app_state): State<AppState>,
 ) -> Result<Json<User>, AppError> {
     let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = ?")
         .bind(&auth_user.user_id)
-        .fetch_optional(&pool)
+        .fetch_optional(&app_state.pool)
         .await?
         .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
@@ -24,7 +24,7 @@ pub async fn get_me(
 
 pub async fn update_me(
     Extension(auth_user): Extension<AuthUser>,
-    State(pool): State<DbPool>,
+    State(app_state): State<AppState>,
     Json(update_user): Json<UpdateUser>,
 ) -> Result<Json<User>, AppError> {
     // Build dynamic update query
@@ -71,13 +71,13 @@ pub async fn update_me(
     // Execute update (simplified version - in production use a proper query builder)
     sqlx::query(&query)
         .bind(&auth_user.user_id)
-        .execute(&pool)
+        .execute(&app_state.pool)
         .await?;
 
     // Fetch updated user
     let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = ?")
         .bind(&auth_user.user_id)
-        .fetch_optional(&pool)
+        .fetch_optional(&app_state.pool)
         .await?
         .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
@@ -86,11 +86,11 @@ pub async fn update_me(
 
 pub async fn get_user(
     Path(user_id): Path<String>,
-    State(pool): State<DbPool>,
+    State(app_state): State<AppState>,
 ) -> Result<Json<User>, AppError> {
     let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = ?")
         .bind(&user_id)
-        .fetch_optional(&pool)
+        .fetch_optional(&app_state.pool)
         .await?
         .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 

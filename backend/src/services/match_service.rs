@@ -4,14 +4,14 @@ use crate::{
     models::{Like, Match},
     services::compatibility_service::CompatibilityService,
 };
-use uuid::Uuid;
+use std::sync::Arc;
 
 pub struct MatchService {
-    compatibility_service: CompatibilityService,
+    compatibility_service: Arc<CompatibilityService>,
 }
 
 impl MatchService {
-    pub fn new(compatibility_service: CompatibilityService) -> Self {
+    pub fn new(compatibility_service: Arc<CompatibilityService>) -> Self {
         Self {
             compatibility_service,
         }
@@ -98,7 +98,7 @@ impl MatchService {
 
     pub async fn delete_match(&self, pool: &DbPool, match_id: &str, user_id: &str) -> Result<(), AppError> {
         // Verify that the user is part of this match
-        let match_record = sqlx::query_as::<_, Match>(
+        let _match_record = sqlx::query_as::<_, Match>(
             "SELECT * FROM matches WHERE id = ? AND (user1_id = ? OR user2_id = ?)"
         )
         .bind(match_id)

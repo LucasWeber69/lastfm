@@ -5,8 +5,7 @@ use crate::{
     models::{Artist, Scrobble},
 };
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 struct LastFmTopArtistsResponse {

@@ -1,15 +1,13 @@
 use crate::{
-    db::DbPool,
     errors::AppError,
     middleware::AuthUser,
-    services::LastFmService,
+    AppState,
 };
 use axum::{
     extract::State,
     Extension, Json,
 };
 use serde::Deserialize;
-use std::sync::Arc;
 
 #[derive(Debug, Deserialize)]
 pub struct ConnectLastFmRequest {
@@ -18,14 +16,14 @@ pub struct ConnectLastFmRequest {
 
 pub async fn connect_lastfm(
     Extension(auth_user): Extension<AuthUser>,
-    State(pool): State<DbPool>,
+    State(app_state): State<AppState>,
     Json(req): Json<ConnectLastFmRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     // Update user with Last.fm username
     sqlx::query("UPDATE users SET lastfm_username = ?, lastfm_connected_at = NOW() WHERE id = ?")
         .bind(&req.username)
         .bind(&auth_user.user_id)
-        .execute(&pool)
+        .execute(&app_state.pool)
         .await?;
 
     Ok(Json(serde_json::json!({
@@ -36,13 +34,12 @@ pub async fn connect_lastfm(
 
 pub async fn sync_scrobbles(
     Extension(auth_user): Extension<AuthUser>,
-    State(lastfm_service): State<Arc<LastFmService>>,
-    State(pool): State<DbPool>,
+    State(app_state): State<AppState>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     // Get user's Last.fm username
     let user = sqlx::query_as::<_, crate::models::User>("SELECT * FROM users WHERE id = ?")
         .bind(&auth_user.user_id)
-        .fetch_optional(&pool)
+        .fetch_optional(&app_state.pool)
         .await?
         .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
@@ -51,8 +48,8 @@ pub async fn sync_scrobbles(
         .ok_or_else(|| AppError::Validation("Last.fm account not connected".to_string()))?;
 
     // Sync scrobbles
-    let artists = lastfm_service
-        .sync_user_scrobbles(&pool, &auth_user.user_id, &lastfm_username)
+    let artists = app_state.lastfm_service
+        .sync_user_scrobbles(&app_state.pool, &auth_user.user_id, &lastfm_username)
         .await?;
 
     Ok(Json(serde_json::json!({

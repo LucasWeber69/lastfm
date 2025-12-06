@@ -1,18 +1,16 @@
 use crate::{
-    db::DbPool,
     errors::AppError,
     models::CreateUser,
-    services::auth_service::{AuthService, LoginRequest},
+    services::auth_service::LoginRequest,
+    AppState,
 };
 use axum::{extract::State, Json};
-use std::sync::Arc;
 
 pub async fn register(
-    State(auth_service): State<Arc<AuthService>>,
-    State(pool): State<DbPool>,
+    State(app_state): State<AppState>,
     Json(create_user): Json<CreateUser>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let user = auth_service.register(&pool, create_user).await?;
+    let user = app_state.auth_service.register(&app_state.pool, create_user).await?;
 
     Ok(Json(serde_json::json!({
         "id": user.id,
@@ -22,11 +20,10 @@ pub async fn register(
 }
 
 pub async fn login(
-    State(auth_service): State<Arc<AuthService>>,
-    State(pool): State<DbPool>,
+    State(app_state): State<AppState>,
     Json(login_req): Json<LoginRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let auth_response = auth_service.login(&pool, login_req).await?;
+    let auth_response = app_state.auth_service.login(&app_state.pool, login_req).await?;
 
     Ok(Json(serde_json::json!(auth_response)))
 }
