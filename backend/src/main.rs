@@ -1,0 +1,94 @@
+use axum::{
+    middleware,
+    routing::{delete, get, post, put},
+    Router,
+};
+use lastfm_dating_backend::{
+    config::Config,
+    db,
+    middleware::auth_middleware,
+    routes,
+    services::{AuthService, CompatibilityService, LastFmService, MatchService, PhotoService},
+};
+use std::sync::Arc;
+use tower_http::cors::CorsLayer;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+#[tokio::main]
+async fn main() {
+    // Load environment variables
+    dotenvy::dotenv().ok();
+
+    // Initialize tracing
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "info".into()),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
+    // Load configuration
+    let config = Config::from_env().expect("Failed to load configuration");
+    let host = config.host.clone();
+    let port = config.port;
+
+    // Create database pool
+    let pool = db::create_pool(&config.database_url)
+        .await
+        .expect("Failed to create database pool");
+
+    tracing::info!("Database connection established");
+
+    // Initialize services
+    let auth_service = Arc::new(AuthService::new(config.clone()));
+    let lastfm_service = Arc::new(LastFmService::new(config.clone()));
+    let compatibility_service = Arc::new(CompatibilityService::new((*lastfm_service).clone()));
+    let match_service = Arc::new(MatchService::new((*compatibility_service).clone()));
+    let photo_service = Arc::new(PhotoService::new(config.clone()));
+
+    let config_arc = Arc::new(config);
+
+    // Build application routes
+    let app = Router::new()
+        // Public routes (no auth required)
+        .route("/auth/register", post(routes::auth::register))
+        .route("/auth/login", post(routes::auth::login))
+        .route("/auth/logout", post(routes::auth::logout))
+        // Protected routes (auth required)
+        .route("/users/me", get(routes::users::get_me))
+        .route("/users/me", put(routes::users::update_me))
+        .route("/users/:id", get(routes::users::get_user))
+        .route("/likes", post(routes::matches::create_like))
+        .route("/matches", get(routes::matches::get_matches))
+        .route("/matches/:id", delete(routes::matches::delete_match))
+        .route("/photos", post(routes::photos::create_photo))
+        .route("/photos/:user_id", get(routes::photos::get_user_photos))
+        .route("/photos/:id", delete(routes::photos::delete_photo))
+        .route("/lastfm/connect", post(routes::lastfm::connect_lastfm))
+        .route("/lastfm/sync", post(routes::lastfm::sync_scrobbles))
+        .route("/discover", get(routes::discover::get_discover_profiles))
+        .layer(middleware::from_fn_with_state(
+            config_arc.clone(),
+            auth_middleware,
+        ))
+        // Add CORS
+        .layer(CorsLayer::permissive())
+        // Add shared state
+        .with_state(auth_service)
+        .with_state(lastfm_service)
+        .with_state(compatibility_service)
+        .with_state(match_service)
+        .with_state(photo_service)
+        .with_state(pool);
+
+    let listener = tokio::net::TcpListener::bind(format!("{}:{}", host, port))
+        .await
+        .expect("Failed to bind to address");
+
+    tracing::info!("Server listening on {}:{}", host, port);
+
+    axum::serve(listener, app)
+        .await
+        .expect("Failed to start server");
+}
