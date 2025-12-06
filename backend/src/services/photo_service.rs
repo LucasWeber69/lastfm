@@ -22,12 +22,12 @@ impl PhotoService {
         create_photo: CreatePhoto,
     ) -> Result<Photo, AppError> {
         // Check if user already has 6 photos
-        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM photos WHERE user_id = ?")
+        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM photos WHERE user_id = ?")
             .bind(user_id)
             .fetch_one(pool)
             .await?;
 
-        if count.0 >= 6 {
+        if count >= 6 {
             return Err(AppError::Validation("Maximum 6 photos allowed".to_string()));
         }
 
@@ -69,10 +69,11 @@ impl PhotoService {
         Ok(())
     }
 
-    // In a real implementation, this would upload to S3/MinIO
+    // NOTE: Development-only placeholder. In production, implement actual S3/MinIO upload
+    // This method should upload the file_data to S3/MinIO and return the actual URL
     pub async fn upload_photo(&self, _file_data: Vec<u8>, _filename: &str) -> Result<String, AppError> {
         // TODO: Implement S3/MinIO upload
-        // For now, return a placeholder URL
+        // For now, return a placeholder URL for development
         let photo_id = Uuid::new_v4();
         Ok(format!("https://placeholder.com/photos/{}.jpg", photo_id))
     }

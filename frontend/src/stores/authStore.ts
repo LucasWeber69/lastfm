@@ -22,7 +22,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.setItem('auth_token', response.token);
     set({
       token: response.token,
-      user: response.user as any,
+      user: {
+        id: response.user.id,
+        email: response.user.email,
+        name: response.user.name,
+      } as User,
       isAuthenticated: true,
     });
   },

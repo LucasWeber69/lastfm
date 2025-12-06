@@ -16,6 +16,8 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
+        // Rewrite removes /api prefix since backend routes don't include it
+        // Example: /api/auth/login -> /auth/login
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },
