@@ -15,8 +15,9 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
-    pub sub: String, // user id
-    pub exp: usize,  // expiration time
+    pub sub: String,   // user id
+    pub email: String, // user email (for account-based rate limiting)
+    pub exp: usize,    // expiration time
 }
 
 #[derive(Debug, Deserialize)]
@@ -103,8 +104,8 @@ impl AuthService {
         // Verify password
         self.verify_password(&login_req.password, &user.password_hash)?;
 
-        // Generate JWT
-        let token = self.generate_token(&user.id)?;
+        // Generate JWT with user ID and email
+        let token = self.generate_token(&user.id, &user.email)?;
 
         Ok(AuthResponse {
             token,
@@ -135,7 +136,7 @@ impl AuthService {
             .map_err(|_| AppError::Auth("Invalid email or password".to_string()))
     }
 
-    pub fn generate_token(&self, user_id: &str) -> Result<String, AppError> {
+    pub fn generate_token(&self, user_id: &str, email: &str) -> Result<String, AppError> {
         let expiration = Utc::now()
             .checked_add_signed(Duration::days(30))
             .expect("valid timestamp")
@@ -143,6 +144,7 @@ impl AuthService {
 
         let claims = Claims {
             sub: user_id.to_string(),
+            email: email.to_string(),
             exp: expiration as usize,
         };
 

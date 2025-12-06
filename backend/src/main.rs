@@ -11,6 +11,7 @@ use lastfm_dating_backend::{
     services::{AuthService, CaptchaService, CompatibilityService, LastFmService, MatchService, PhotoService},
     AppState,
 };
+use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::cors::{CorsLayer, Any};
 use axum::http::{HeaderValue, Method};
@@ -120,7 +121,11 @@ async fn main() {
 
     tracing::info!("Server listening on {}:{}", host, port);
 
-    axum::serve(listener, app)
-        .await
-        .expect("Failed to start server");
+    // Serve with ConnectInfo to access client IP addresses
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
+    .expect("Failed to start server");
 }

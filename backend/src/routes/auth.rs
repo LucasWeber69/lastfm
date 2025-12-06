@@ -41,11 +41,17 @@ pub async fn register(
     }
 
     let user = app_state.auth_service.register(&app_state.pool, req.user).await?;
+    
+    // Generate JWT token for immediate login after registration
+    let token = app_state.auth_service.generate_token(&user.id, &user.email)?;
 
     Ok(Json(serde_json::json!({
-        "id": user.id,
-        "email": user.email,
-        "name": user.name,
+        "token": token,
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+        }
     })))
 }
 
