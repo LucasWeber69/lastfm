@@ -3,6 +3,7 @@ use crate::{
     db::DbPool,
     errors::AppError,
     models::{CreateUser, User},
+    services::normalize_email,
 };
 use argon2::{
     password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
@@ -47,8 +48,14 @@ impl AuthService {
     }
 
     pub async fn register(&self, pool: &DbPool, create_user: CreateUser) -> Result<User, AppError> {
-        // Check if email already exists
-        let existing = sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = ?")
+        // Normalize email to prevent duplicate account abuse
+        let normalized_email = normalize_email(&create_user.email);
+        
+        // Check if normalized email already exists (prevents gmail+tag abuse)
+        let existing = sqlx::query_as::<_, User>(
+            "SELECT * FROM users WHERE LOWER(email) = ? OR email = ?"
+        )
+            .bind(&normalized_email)
             .bind(&create_user.email)
             .fetch_optional(pool)
             .await?;
@@ -60,7 +67,7 @@ impl AuthService {
         // Hash password
         let password_hash = self.hash_password(&create_user.password)?;
 
-        // Create user
+        // Create user with normalized email stored for duplicate detection
         let user = User::new(
             create_user.email,
             password_hash,
