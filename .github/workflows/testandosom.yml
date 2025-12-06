@@ -1,0 +1,38 @@
+name: MCP Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  mcp-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install MCPScan
+        run: pip install mcpscan
+      
+      - name: Run MCP Security Scan
+        run: |
+          mcpscan scan .  --output results.json --format json
+          mcpscan scan . --output results.md --format markdown
+      
+      - name: Display Results
+        run: cat results.md
+      
+      - name: Upload Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-security-report
+          path: |
+            results.json
+            results.md
