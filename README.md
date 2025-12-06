@@ -37,6 +37,17 @@ This application uses Last.fm scrobbles to calculate musical compatibility betwe
 - Photo management (up to 6 photos)
 - Responsive design (mobile-first)
 
+### 🔒 Security Features
+- JWT Bearer token authentication
+- Argon2 password hashing
+- Protected API routes
+- SQL injection prevention
+- CORS restrictions
+- Secure password handling (never exposed)
+- Environment-based configuration
+
+See [SECURITY.md](SECURITY.md) for complete security documentation.
+
 ### 🚧 Coming Soon
 - Real-time chat (WebSocket)
 - Advanced filters (distance, age, gender)
@@ -66,10 +77,13 @@ cp .env.example .env
 3. Edit `.env` and fill in your configuration:
 ```env
 DATABASE_URL=mysql://user:password@localhost:3306/lastfm_dating
-JWT_SECRET=your-super-secret-key-change-this
+JWT_SECRET=your-super-secret-key-change-this-in-production
 LASTFM_API_KEY=your-lastfm-api-key
 LASTFM_API_SECRET=your-lastfm-api-secret
+ALLOWED_ORIGINS=http://localhost:3000
 ```
+
+⚠️ **Security Note**: Use a strong JWT_SECRET in production (minimum 32 random characters)
 
 4. Create the database and run migrations:
 ```bash

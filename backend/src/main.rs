@@ -12,7 +12,8 @@ use lastfm_dating_backend::{
     AppState,
 };
 use std::sync::Arc;
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{CorsLayer, Any};
+use axum::http::{HeaderValue, Method};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -33,6 +34,7 @@ async fn main() {
     let config = Config::from_env().expect("Failed to load configuration");
     let host = config.host.clone();
     let port = config.port;
+    let allowed_origins = config.allowed_origins.clone();
 
     // Create database pool
     let pool = db::create_pool(&config.database_url)
@@ -62,12 +64,14 @@ async fn main() {
     };
 
     // Build application routes
-    let app = Router::new()
-        // Public routes (no auth required)
+    // Public routes (no authentication required)
+    let public_routes = Router::new()
         .route("/auth/register", post(routes::auth::register))
         .route("/auth/login", post(routes::auth::login))
-        .route("/auth/logout", post(routes::auth::logout))
-        // Protected routes (auth required)
+        .route("/auth/logout", post(routes::auth::logout));
+
+    // Protected routes (authentication required)
+    let protected_routes = Router::new()
         .route("/users/me", get(routes::users::get_me))
         .route("/users/me", put(routes::users::update_me))
         .route("/users/:id", get(routes::users::get_user))
@@ -83,10 +87,24 @@ async fn main() {
         .layer(middleware::from_fn_with_state(
             config_arc.clone(),
             auth_middleware,
-        ))
-        // Add CORS
-        .layer(CorsLayer::permissive())
-        // Add shared state
+        ));
+
+    // Combine routes and add CORS with security restrictions
+    let cors = CorsLayer::new()
+        .allow_origin(
+            allowed_origins
+                .iter()
+                .map(|origin| origin.parse::<HeaderValue>().unwrap())
+                .collect::<Vec<_>>(),
+        )
+        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
+        .allow_headers(Any)
+        .allow_credentials(true);
+
+    let app = Router::new()
+        .merge(public_routes)
+        .merge(protected_routes)
+        .layer(cors)
         .with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind(format!("{}:{}", host, port))

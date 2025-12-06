@@ -12,10 +12,17 @@ pub struct Config {
     pub s3_secret_key: String,
     pub host: String,
     pub port: u16,
+    pub allowed_origins: Vec<String>,
 }
 
 impl Config {
     pub fn from_env() -> Result<Self, env::VarError> {
+        let allowed_origins = env::var("ALLOWED_ORIGINS")
+            .unwrap_or_else(|_| "http://localhost:3000".to_string())
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .collect();
+
         Ok(Config {
             database_url: env::var("DATABASE_URL")?,
             jwt_secret: env::var("JWT_SECRET")?,
@@ -30,6 +37,7 @@ impl Config {
                 .unwrap_or_else(|_| "8000".to_string())
                 .parse()
                 .expect("PORT must be a valid number"),
+            allowed_origins,
         })
     }
 }
