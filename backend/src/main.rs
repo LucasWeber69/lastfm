@@ -8,7 +8,7 @@ use lastfm_dating_backend::{
     db,
     middleware::auth_middleware,
     routes,
-    services::{AuthService, CompatibilityService, LastFmService, MatchService, PhotoService},
+    services::{AuthService, CaptchaService, CompatibilityService, LastFmService, MatchService, PhotoService},
     AppState,
 };
 use std::sync::Arc;
@@ -49,6 +49,7 @@ async fn main() {
     let compatibility_service = Arc::new(CompatibilityService::new(lastfm_service.clone()));
     let match_service = Arc::new(MatchService::new(compatibility_service.clone()));
     let photo_service = Arc::new(PhotoService::new(config.clone()));
+    let captcha_service = Arc::new(CaptchaService::new());
 
     let config_arc = Arc::new(config);
 
@@ -61,6 +62,7 @@ async fn main() {
         compatibility_service,
         match_service,
         photo_service,
+        captcha_service,
     };
 
     // Build application routes
@@ -68,7 +70,9 @@ async fn main() {
     let public_routes = Router::new()
         .route("/auth/register", post(routes::auth::register))
         .route("/auth/login", post(routes::auth::login))
-        .route("/auth/logout", post(routes::auth::logout));
+        .route("/auth/logout", post(routes::auth::logout))
+        .route("/captcha/generate", get(routes::captcha::generate_captcha))
+        .route("/captcha/validate", post(routes::captcha::validate_captcha));
 
     // Protected routes (authentication required)
     let protected_routes = Router::new()

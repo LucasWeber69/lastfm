@@ -4,3 +4,4 @@ pub mod matches;
 pub mod photos;
 pub mod lastfm;
 pub mod discover;
+pub mod captcha;

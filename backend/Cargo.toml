@@ -47,4 +47,10 @@ anyhow = "1.0"
 aws-sdk-s3 = "1.0"
 aws-config = "1.0"
 
+# CAPTCHA generation (simple text-based alternative)
+rand = "0.8"
+
+# Redis (for rate limiting and caching)
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+
 [dev-dependencies]

@@ -1,7 +1,7 @@
 use crate::{
     config::Config,
     db::DbPool,
-    services::{AuthService, CompatibilityService, LastFmService, MatchService, PhotoService},
+    services::{AuthService, CaptchaService, CompatibilityService, LastFmService, MatchService, PhotoService},
 };
 use std::sync::Arc;
 
@@ -14,4 +14,5 @@ pub struct AppState {
     pub compatibility_service: Arc<CompatibilityService>,
     pub match_service: Arc<MatchService>,
     pub photo_service: Arc<PhotoService>,
+    pub captcha_service: Arc<CaptchaService>,
 }

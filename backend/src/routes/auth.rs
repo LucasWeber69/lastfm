@@ -4,13 +4,43 @@ use crate::{
     services::auth_service::LoginRequest,
     AppState,
 };
-use axum::{extract::State, Json};
+use axum::{extract::{ConnectInfo, State}, Json};
+use serde::{Deserialize, Serialize};
+use std::net::SocketAddr;
+
+#[derive(Debug, Deserialize)]
+pub struct RegisterRequest {
+    #[serde(flatten)]
+    pub user: CreateUser,
+    pub captcha_id: String,
+    pub captcha_answer: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LoginRequestWithCaptcha {
+    #[serde(flatten)]
+    pub login: LoginRequest,
+    pub captcha_id: String,
+    pub captcha_answer: String,
+}
 
 pub async fn register(
     State(app_state): State<AppState>,
-    Json(create_user): Json<CreateUser>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    Json(req): Json<RegisterRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let user = app_state.auth_service.register(&app_state.pool, create_user).await?;
+    // Validate CAPTCHA first (anti-bot protection)
+    let ip = addr.ip().to_string();
+    let captcha_valid = app_state
+        .captcha_service
+        .validate(&req.captcha_id, &req.captcha_answer, &ip)
+        .await?;
+    
+    if !captcha_valid {
+        return Err(AppError::Auth("Invalid CAPTCHA".to_string()));
+    }
+
+    let user = app_state.auth_service.register(&app_state.pool, req.user).await?;
 
     Ok(Json(serde_json::json!({
         "id": user.id,
@@ -21,9 +51,21 @@ pub async fn register(
 
 pub async fn login(
     State(app_state): State<AppState>,
-    Json(login_req): Json<LoginRequest>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    Json(req): Json<LoginRequestWithCaptcha>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let auth_response = app_state.auth_service.login(&app_state.pool, login_req).await?;
+    // Validate CAPTCHA first (anti-brute-force protection)
+    let ip = addr.ip().to_string();
+    let captcha_valid = app_state
+        .captcha_service
+        .validate(&req.captcha_id, &req.captcha_answer, &ip)
+        .await?;
+    
+    if !captcha_valid {
+        return Err(AppError::Auth("Invalid CAPTCHA".to_string()));
+    }
+
+    let auth_response = app_state.auth_service.login(&app_state.pool, req.login).await?;
 
     Ok(Json(serde_json::json!(auth_response)))
 }
