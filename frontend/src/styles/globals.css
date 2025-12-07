@@ -28,9 +28,7 @@
 @layer components {
   /* Button Styles */
   .btn-primary {
-    @apply relative overflow-hidden bg-gradient-to-br from-primary to-secondary text-white font-medium py-2 px-6 rounded-lg;
-    @apply shadow-glow-gradient hover:shadow-glow-purple hover:scale-105 transform transition-all duration-300;
-    @apply disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100;
+    @apply relative overflow-hidden bg-gradient-to-br from-primary to-secondary text-white font-medium py-2 px-6 rounded-lg shadow-glow-gradient hover:shadow-glow-purple hover:scale-105 transform transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100;
   }
 
   .btn-secondary {
