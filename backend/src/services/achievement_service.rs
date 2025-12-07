@@ -113,7 +113,13 @@ impl AchievementService {
             None => {
                 // Create default stats
                 Self::initialize_user_stats(pool, user_id).await?;
-                Self::get_user_stats(pool, user_id).await
+                
+                // Fetch again after initialization
+                sqlx::query_as("SELECT * FROM user_stats WHERE user_id = ?")
+                    .bind(user_id)
+                    .fetch_one(pool)
+                    .await
+                    .map_err(Into::into)
             }
         }
     }

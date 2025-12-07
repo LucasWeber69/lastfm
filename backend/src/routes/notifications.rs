@@ -1,7 +1,7 @@
 use crate::{
     errors::AppError,
     middleware::AuthUser,
-    services::notification_service::{CreatePushSubscription, NotificationService},
+    services::notification_service::CreatePushSubscription,
     AppState,
 };
 use axum::{

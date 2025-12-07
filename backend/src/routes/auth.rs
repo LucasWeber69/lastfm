@@ -5,7 +5,7 @@ use crate::{
     AppState,
 };
 use axum::{extract::{ConnectInfo, State}, Json};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::net::SocketAddr;
 
 #[derive(Debug, Deserialize)]

@@ -55,7 +55,7 @@ pub async fn rate_limit_middleware(
     next: Next,
 ) -> Result<Response, StatusCode> {
     // Get client IP from headers or connection
-    let ip = get_client_ip(request.headers());
+    let _ip = get_client_ip(request.headers());
 
     // For now, just pass through
     // In a full implementation, you would:

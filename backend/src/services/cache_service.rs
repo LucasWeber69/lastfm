@@ -52,7 +52,7 @@ impl CacheService {
         let json = serde_json::to_string(value)
             .map_err(|e| AppError::Internal(format!("Failed to serialize cache: {}", e)))?;
 
-        conn.set_ex(key, json, ttl.as_secs())
+        conn.set_ex::<_, _, ()>(key, json, ttl.as_secs())
             .await
             .map_err(|e| AppError::Internal(format!("Redis set error: {}", e)))?;
 
@@ -62,7 +62,7 @@ impl CacheService {
     /// Delete a cached value
     pub async fn delete(&self, key: &str) -> Result<(), AppError> {
         let mut conn = self.client.clone();
-        conn.del(key)
+        conn.del::<_, ()>(key)
             .await
             .map_err(|e| AppError::Internal(format!("Redis delete error: {}", e)))?;
 
@@ -80,7 +80,7 @@ impl CacheService {
             .map_err(|e| AppError::Internal(format!("Redis keys error: {}", e)))?;
 
         if !keys.is_empty() {
-            conn.del(keys)
+            conn.del::<_, ()>(keys)
                 .await
                 .map_err(|e| AppError::Internal(format!("Redis delete pattern error: {}", e)))?;
         }
@@ -111,7 +111,7 @@ impl CacheService {
 
         // Set TTL if this is the first increment
         if value == 1 {
-            conn.expire(key, ttl.as_secs() as i64)
+            conn.expire::<_, ()>(key, ttl.as_secs() as i64)
                 .await
                 .map_err(|e| AppError::Internal(format!("Redis expire error: {}", e)))?;
         }

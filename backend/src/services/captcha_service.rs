@@ -1,5 +1,5 @@
-use crate::{db::DbPool, errors::AppError};
-use chrono::{Duration, Utc};
+use crate::errors::AppError;
+use chrono::Utc;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

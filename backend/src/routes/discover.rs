@@ -138,7 +138,7 @@ pub async fn get_discover_profiles(
 
         // Apply genre filter if specified
         if let Some(genres_str) = &filters.genres {
-            let requested_genres: Vec<String> = genres_str
+            let _requested_genres: Vec<String> = genres_str
                 .split(',')
                 .map(|s| s.trim().to_lowercase())
                 .collect();

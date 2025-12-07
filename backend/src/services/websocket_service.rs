@@ -1,16 +1,15 @@
 use crate::{db::DbPool, errors::AppError, models::Message};
-use axum::extract::ws::{WebSocket, WebSocketUpgrade};
+use axum::extract::ws::{Message as WsMessage, WebSocket};
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
-use uuid::Uuid;
 
 /// WebSocket message types
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
-pub enum WsMessage {
+pub enum WsMessageType {
     #[serde(rename = "message")]
     Message {
         id: String,
@@ -60,7 +59,7 @@ pub enum ClientMessage {
     Ping,
 }
 
-type Tx = mpsc::UnboundedSender<WsMessage>;
+type Tx = mpsc::UnboundedSender<WsMessageType>;
 type ConnectionMap = Arc<RwLock<HashMap<String, Tx>>>;
 
 /// WebSocket connection manager
@@ -91,7 +90,7 @@ impl WebSocketService {
     }
 
     /// Send a message to a specific user
-    pub async fn send_to_user(&self, user_id: &str, message: WsMessage) -> Result<(), AppError> {
+    pub async fn send_to_user(&self, user_id: &str, message: WsMessageType) -> Result<(), AppError> {
         let connections = self.connections.read().await;
         if let Some(tx) = connections.get(user_id) {
             tx.send(message).map_err(|e| {
@@ -115,7 +114,7 @@ impl WebSocketService {
 
     /// Handle WebSocket connection
     pub async fn handle_connection(
-        self,
+        &self,
         ws: WebSocket,
         user_id: String,
         pool: DbPool,
@@ -134,7 +133,7 @@ impl WebSocketService {
         let send_task = tokio::spawn(async move {
             while let Some(msg) = rx.recv().await {
                 if let Ok(json) = serde_json::to_string(&msg) {
-                    if ws_tx.send(axum::extract::ws::Message::Text(json)).await.is_err() {
+                    if ws_tx.send(WsMessage::Text(json)).await.is_err() {
                         break;
                     }
                 }
@@ -144,15 +143,16 @@ impl WebSocketService {
         // Handle incoming messages from the WebSocket
         let service_clone = self.clone();
         let user_id_clone2 = user_id.clone();
+        let pool_clone = pool.clone();
         let receive_task = tokio::spawn(async move {
             while let Some(Ok(msg)) = ws_rx.next().await {
-                if let axum::extract::ws::Message::Text(text) = msg {
+                if let WsMessage::Text(text) = msg {
                     if let Ok(client_msg) = serde_json::from_str::<ClientMessage>(&text) {
                         service_clone
-                            .handle_client_message(client_msg, &user_id_clone2, &pool)
+                            .handle_client_message(client_msg, &user_id_clone2, &pool_clone)
                             .await;
                     }
-                } else if let axum::extract::ws::Message::Close(_) = msg {
+                } else if let WsMessage::Close(_) = msg {
                     break;
                 }
             }
@@ -191,7 +191,7 @@ impl WebSocketService {
                 }
 
                 // Send to receiver if online
-                let ws_msg = WsMessage::Message {
+                let ws_msg = WsMessageType::Message {
                     id: message.id.clone(),
                     match_id: Some(match_id),
                     sender_id: user_id.to_string(),
@@ -205,7 +205,7 @@ impl WebSocketService {
             ClientMessage::Typing { match_id, is_typing } => {
                 // Get the other user in the match
                 if let Ok(Some(other_user_id)) = Self::get_other_user_in_match(pool, &match_id, user_id).await {
-                    let ws_msg = WsMessage::Typing {
+                    let ws_msg = WsMessageType::Typing {
                         match_id,
                         user_id: user_id.to_string(),
                         is_typing,

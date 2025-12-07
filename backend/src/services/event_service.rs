@@ -134,9 +134,11 @@ impl EventService {
             conditions.push("country = ?");
         }
 
+        let conditions_str;
         if !conditions.is_empty() {
             query_parts.push(" AND ");
-            query_parts.push(&conditions.join(" AND "));
+            conditions_str = conditions.join(" AND ");
+            query_parts.push(&conditions_str);
         }
 
         query_parts.push(" ORDER BY event_date ASC LIMIT 50");
@@ -247,7 +249,7 @@ impl EventService {
     /// Get events based on user's top artists
     /// This would integrate with external API in production
     pub async fn get_recommended_events(
-        pool: &DbPool,
+        _pool: &DbPool,
         _user_id: &str,
         _top_artists: Vec<String>,
     ) -> Result<Vec<EventInterest>, AppError> {
