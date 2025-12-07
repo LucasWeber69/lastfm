@@ -53,4 +53,15 @@ rand = "0.8"
 # Redis (for rate limiting and caching)
 redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
 
+# WebSocket
+tokio-tungstenite = "0.21"
+futures-util = "0.3"
+
+# Web Push Notifications
+web-push = "0.9"
+base64 = "0.21"
+
+# AWS credentials
+aws-credential-types = "1.0"
+
 [dev-dependencies]
