@@ -5,3 +5,7 @@ pub mod photos;
 pub mod lastfm;
 pub mod discover;
 pub mod captcha;
+pub mod websocket;
+pub mod notifications;
+pub mod events;
+pub mod achievements;

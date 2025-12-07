@@ -8,7 +8,10 @@ use lastfm_dating_backend::{
     db,
     middleware::auth_middleware,
     routes,
-    services::{AuthService, CaptchaService, CompatibilityService, LastFmService, MatchService, PhotoService},
+    services::{
+        AuthService, CacheService, CaptchaService, CompatibilityService, LastFmService,
+        MatchService, NotificationService, PhotoService, WebSocketService,
+    },
     AppState,
 };
 use std::net::SocketAddr;
@@ -49,7 +52,33 @@ async fn main() {
     let lastfm_service = Arc::new(LastFmService::new(config.clone()));
     let compatibility_service = Arc::new(CompatibilityService::new(lastfm_service.clone()));
     let match_service = Arc::new(MatchService::new(compatibility_service.clone()));
-    let photo_service = Arc::new(PhotoService::new(config.clone()));
+    
+    // Initialize cache service
+    let cache_service = match CacheService::new(&config.redis_url).await {
+        Ok(service) => Arc::new(service),
+        Err(e) => {
+            tracing::warn!("Failed to connect to Redis: {}. Caching will be disabled.", e);
+            // Create a dummy cache service that won't be used
+            // In production, you might want to fail here instead
+            Arc::new(CacheService::new("redis://localhost:6379").await.unwrap_or_else(|_| {
+                panic!("Redis is required but not available")
+            }))
+        }
+    };
+    
+    // Initialize photo service with S3
+    let photo_service = Arc::new(PhotoService::new(config.clone()).with_s3().await);
+    
+    // Initialize WebSocket service
+    let websocket_service = Arc::new(WebSocketService::new());
+    
+    // Initialize notification service
+    let notification_service = Arc::new(NotificationService::new(
+        config.vapid_private_key.clone(),
+        config.vapid_public_key.clone(),
+        config.vapid_subject.clone(),
+    ));
+    
     let captcha_service = Arc::new(CaptchaService::new());
 
     let config_arc = Arc::new(config);
@@ -64,6 +93,9 @@ async fn main() {
         match_service,
         photo_service,
         captcha_service,
+        cache_service,
+        websocket_service,
+        notification_service,
     };
 
     // Build application routes
@@ -89,10 +121,31 @@ async fn main() {
         .route("/lastfm/connect", post(routes::lastfm::connect_lastfm))
         .route("/lastfm/sync", post(routes::lastfm::sync_scrobbles))
         .route("/discover", get(routes::discover::get_discover_profiles))
+        // WebSocket route
+        .route("/ws", get(routes::websocket::websocket_handler))
+        // Notification routes
+        .route("/notifications/subscribe", post(routes::notifications::subscribe))
+        .route("/notifications/unsubscribe", delete(routes::notifications::unsubscribe))
+        .route("/notifications/subscriptions", get(routes::notifications::get_subscriptions))
+        // Event routes
+        .route("/events/nearby", get(routes::events::get_nearby_events))
+        .route("/events/common/:user_id", get(routes::events::get_common_events))
+        .route("/events/interests", get(routes::events::get_user_interests))
+        .route("/events/interest", post(routes::events::add_interest))
+        .route("/events/interest/:event_id", delete(routes::events::remove_interest))
+        // Achievement routes
+        .route("/achievements", get(routes::achievements::get_achievements))
+        .route("/users/me/stats", get(routes::achievements::get_user_stats))
         .layer(middleware::from_fn_with_state(
             config_arc.clone(),
             auth_middleware,
         ));
+
+    // Public routes for achievements (limited view)
+    let public_achievement_routes = Router::new()
+        .route("/users/:id/achievements", get(routes::achievements::get_user_achievements_public))
+        .route("/users/:id/stats", get(routes::achievements::get_user_stats_public))
+        .route("/events/popular", get(routes::events::get_popular_events));
 
     // Combine routes and add CORS with security restrictions
     let cors = CorsLayer::new()
@@ -111,6 +164,7 @@ async fn main() {
 
     let app = Router::new()
         .merge(public_routes)
+        .merge(public_achievement_routes)
         .merge(protected_routes)
         .layer(cors)
         .with_state(app_state);

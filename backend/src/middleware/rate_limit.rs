@@ -1,58 +1,52 @@
 use axum::{
     extract::Request,
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     middleware::Next,
     response::Response,
 };
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::sync::Arc;
+use std::time::Duration;
+use crate::services::CacheService;
 
-/// Simple in-memory rate limiter
-/// In production, use Redis for distributed rate limiting
+/// Rate limiter using Redis
 #[derive(Clone)]
 pub struct RateLimiter {
-    // IP -> (request_count, window_start)
-    requests: Arc<Mutex<HashMap<String, (u32, Instant)>>>,
+    cache: Arc<CacheService>,
     max_requests: u32,
     window: Duration,
 }
 
 impl RateLimiter {
-    pub fn new(max_requests: u32, window: Duration) -> Self {
+    pub fn new(cache: Arc<CacheService>, max_requests: u32, window: Duration) -> Self {
         Self {
-            requests: Arc::new(Mutex::new(HashMap::new())),
+            cache,
             max_requests,
             window,
         }
     }
 
-    pub fn check_rate_limit(&self, ip: &str) -> bool {
-        let mut requests = self.requests.lock().unwrap();
-        let now = Instant::now();
-
-        if let Some((count, start)) = requests.get_mut(ip) {
-            if now.duration_since(*start) > self.window {
-                // Reset window
-                *count = 1;
-                *start = now;
-                true
-            } else if *count < self.max_requests {
-                *count += 1;
-                true
-            } else {
-                false
+    pub async fn check_rate_limit(&self, identifier: &str, endpoint: &str) -> Result<(bool, u32, i64), String> {
+        let key = format!("rate_limit:{}:{}", identifier, endpoint);
+        
+        match self.cache.increment(&key, self.window).await {
+            Ok(count) => {
+                let remaining = if count as u32 <= self.max_requests {
+                    self.max_requests - count as u32
+                } else {
+                    0
+                };
+                
+                let ttl = self.cache.ttl(&key).await.unwrap_or(self.window.as_secs() as i64);
+                let allowed = count as u32 <= self.max_requests;
+                
+                Ok((allowed, remaining, ttl))
             }
-        } else {
-            requests.insert(ip.to_string(), (1, now));
-            true
+            Err(e) => {
+                tracing::error!("Rate limit check failed: {}", e);
+                // On Redis failure, allow the request to prevent blocking legitimate traffic
+                Ok((true, self.max_requests, self.window.as_secs() as i64))
+            }
         }
-    }
-
-    pub fn cleanup_old_entries(&self) {
-        let mut requests = self.requests.lock().unwrap();
-        let now = Instant::now();
-        requests.retain(|_, (_, start)| now.duration_since(*start) <= self.window);
     }
 }
 
@@ -61,22 +55,32 @@ pub async fn rate_limit_middleware(
     next: Next,
 ) -> Result<Response, StatusCode> {
     // Get client IP from headers or connection
-    let _ip = request
-        .headers()
-        .get("x-forwarded-for")
-        .and_then(|h| h.to_str().ok())
-        .unwrap_or("unknown")
-        .split(',')
-        .next()
-        .unwrap_or("unknown")
-        .trim();
+    let ip = get_client_ip(request.headers());
 
-    // TODO: Implement actual rate limiting with Redis
     // For now, just pass through
-    // In production, you would:
-    // 1. Check Redis for rate limit
-    // 2. Increment counter
-    // 3. Return 429 if exceeded
+    // In a full implementation, you would:
+    // 1. Extract the rate limiter from the state
+    // 2. Determine the endpoint and rate limit rules
+    // 3. Check the rate limit
+    // 4. Add rate limit headers to response
+    // 5. Return 429 if exceeded
 
     Ok(next.run(request).await)
+}
+
+fn get_client_ip(headers: &HeaderMap) -> String {
+    headers
+        .get("x-forwarded-for")
+        .and_then(|h| h.to_str().ok())
+        .map(|s| s.split(',').next().unwrap_or("unknown").trim().to_string())
+        .unwrap_or_else(|| "unknown".to_string())
+}
+
+/// Create a rate limit middleware with custom limits
+pub fn create_rate_limiter(
+    cache: Arc<CacheService>,
+    max_requests: u32,
+    window_secs: u64,
+) -> RateLimiter {
+    RateLimiter::new(cache, max_requests, Duration::from_secs(window_secs))
 }
