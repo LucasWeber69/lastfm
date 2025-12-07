@@ -1,12 +1,11 @@
 use axum::{
     extract::{ConnectInfo, State},
-    http::StatusCode,
     Json,
 };
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 
-use crate::{errors::AppError, services::CaptchaService, state::AppState};
+use crate::{errors::AppError, state::AppState};
 
 #[derive(Debug, Deserialize)]
 pub struct ValidateCaptchaRequest {
