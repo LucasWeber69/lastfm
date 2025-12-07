@@ -14,7 +14,7 @@ export const BottomNav: React.FC = () => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-surface border-t border-gray-800 md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 bg-surface/70 backdrop-blur-lg border-t border-border/50 md:hidden z-50">
       <div className="flex justify-around items-center h-16">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -25,8 +25,8 @@ export const BottomNav: React.FC = () => {
               key={item.path}
               to={item.path}
               className={clsx(
-                'flex flex-col items-center justify-center flex-1 h-full transition-colors',
-                isActive ? 'text-primary' : 'text-gray-400 hover:text-white'
+                'flex flex-col items-center justify-center flex-1 h-full transition-all duration-300',
+                isActive ? 'text-primary scale-110' : 'text-text-secondary hover:text-white hover:scale-105'
               )}
             >
               <Icon size={24} />

@@ -15,15 +15,16 @@ export const Input: React.FC<InputProps> = ({
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium mb-2 text-gray-300">
+        <label className="block text-sm font-medium mb-2 text-text-secondary">
           {label}
         </label>
       )}
       <input
         className={clsx(
-          'w-full bg-surface border border-gray-700 text-white rounded-lg px-4 py-2',
-          'focus:outline-none focus:border-primary transition-colors',
-          error && 'border-red-500',
+          'w-full bg-surface border border-border text-white rounded-lg px-4 py-2.5',
+          'focus:outline-none focus:border-primary focus:shadow-glow-purple',
+          'placeholder:text-text-secondary transition-all duration-300',
+          error && 'border-red-500 focus:border-red-500 focus:shadow-none',
           className
         )}
         {...props}
