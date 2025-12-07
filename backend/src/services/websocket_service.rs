@@ -129,7 +129,6 @@ impl WebSocketService {
         let _ = Self::update_presence(&pool, &user_id, "online").await;
 
         // Spawn task to send messages to the WebSocket
-        let user_id_clone = user_id.clone();
         let send_task = tokio::spawn(async move {
             while let Some(msg) = rx.recv().await {
                 if let Ok(json) = serde_json::to_string(&msg) {
@@ -187,6 +186,12 @@ impl WebSocketService {
                 
                 if let Err(e) = Self::save_message(pool, &message, Some(&receiver_id)).await {
                     tracing::error!("Failed to save message: {}", e);
+                    
+                    // Send error back to sender
+                    let error_msg = WsMessageType::Error {
+                        message: "Failed to send message".to_string(),
+                    };
+                    let _ = self.send_to_user(user_id, error_msg).await;
                     return;
                 }
 

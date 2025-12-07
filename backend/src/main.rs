@@ -20,6 +20,15 @@ use tower_http::cors::{CorsLayer, Any};
 use axum::http::{HeaderValue, Method};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+// Helper function for colored output
+fn print_success(msg: &str) {
+    println!("✓ {}", msg);
+}
+
+fn print_error(msg: &str) {
+    eprintln!("✗ {}", msg);
+}
+
 #[tokio::main]
 async fn main() {
     // Load environment variables
@@ -55,14 +64,14 @@ async fn main() {
     
     // Initialize cache service
     let cache_service = match CacheService::new(&config.redis_url).await {
-        Ok(service) => Arc::new(service),
+        Ok(service) => {
+            print_success("Redis connection established");
+            Arc::new(service)
+        }
         Err(e) => {
-            tracing::warn!("Failed to connect to Redis: {}. Caching will be disabled.", e);
-            // Create a dummy cache service that won't be used
-            // In production, you might want to fail here instead
-            Arc::new(CacheService::new("redis://localhost:6379").await.unwrap_or_else(|_| {
-                panic!("Redis is required but not available")
-            }))
+            print_error(&format!("Failed to connect to Redis: {}. Application requires Redis.", e));
+            tracing::error!("Redis connection failed: {}", e);
+            panic!("Redis is required for this application to function properly");
         }
     };
     

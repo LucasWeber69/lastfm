@@ -104,7 +104,7 @@ impl PhotoService {
     }
 
     // Upload a photo to S3/MinIO and return the URL
-    pub async fn upload_photo(&self, file_data: Vec<u8>, filename: &str, content_type: &str) -> Result<String, AppError> {
+    pub async fn upload_photo(&self, file_data: Vec<u8>, original_filename: &str, content_type: &str) -> Result<String, AppError> {
         // Validate file size (max 5MB)
         if file_data.len() > 5 * 1024 * 1024 {
             return Err(AppError::Validation("File size exceeds 5MB limit".to_string()));
@@ -118,7 +118,7 @@ impl PhotoService {
             ));
         }
 
-        // Generate unique filename
+        // Generate unique filename (we use a UUID instead of original filename for security)
         let photo_id = Uuid::new_v4();
         let extension = match content_type {
             "image/jpeg" => "jpg",
@@ -128,6 +128,8 @@ impl PhotoService {
             _ => "jpg",
         };
         let key = format!("photos/{}.{}", photo_id, extension);
+        
+        tracing::info!("Uploading photo '{}' as '{}'", original_filename, key);
 
         // Upload to S3/MinIO if client is available
         if let Some(client) = &self.s3_client {

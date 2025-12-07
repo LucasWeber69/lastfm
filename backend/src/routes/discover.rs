@@ -137,15 +137,11 @@ pub async fn get_discover_profiles(
             .await?;
 
         // Apply genre filter if specified
-        if let Some(genres_str) = &filters.genres {
-            let _requested_genres: Vec<String> = genres_str
-                .split(',')
-                .map(|s| s.trim().to_lowercase())
-                .collect();
-            
+        if let Some(_genres_str) = &filters.genres {
             // TODO: Implement genre filtering based on Last.fm artist tags
-            // For now, we'll skip this filter as it requires artist tag data
+            // For now, we skip this filter as it requires artist tag data
             // In production, you would query artist tags and match against requested genres
+            tracing::warn!("Genre filtering requested but not yet implemented");
         }
 
         // Get common artists

@@ -220,8 +220,13 @@ impl NotificationService {
         payload: &PushNotificationPayload,
     ) -> Result<(), AppError> {
         let id = Uuid::new_v4().to_string();
-        let data_json = serde_json::to_value(&payload.data)
-            .ok();
+        let data_json = match serde_json::to_value(&payload.data) {
+            Ok(val) => Some(val),
+            Err(e) => {
+                tracing::error!("Failed to serialize notification data: {}", e);
+                None
+            }
+        };
 
         sqlx::query(
             "INSERT INTO notification_history (id, user_id, notification_type, title, body, data) 
