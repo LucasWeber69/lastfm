@@ -3,25 +3,136 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --background: #0a0a0a;
+    --surface: #141414;
+    --surface-hover: #1f1f1f;
+    --primary: #a855f7;
+    --primary-hover: #9333ea;
+    --secondary: #ec4899;
+    --accent-gradient: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+    --text-primary: #ffffff;
+    --text-secondary: #a1a1aa;
+    --border: #27272a;
+  }
+
   body {
-    @apply bg-background text-white;
+    @apply bg-background text-white antialiased;
+  }
+
+  * {
+    @apply transition-colors duration-200;
   }
 }
 
 @layer components {
+  /* Button Styles */
   .btn-primary {
-    @apply bg-primary hover:bg-primary/90 text-white font-medium py-2 px-4 rounded-lg transition-colors;
+    @apply relative overflow-hidden bg-gradient-to-br from-primary to-secondary text-white font-medium py-2 px-6 rounded-lg shadow-glow-gradient hover:shadow-glow-purple hover:scale-105 transform transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100;
   }
 
   .btn-secondary {
-    @apply bg-secondary hover:bg-secondary/90 text-white font-medium py-2 px-4 rounded-lg transition-colors;
+    @apply bg-surface hover:bg-surface-hover text-white font-medium py-2 px-6 rounded-lg border border-border;
+    @apply hover:border-primary transition-all duration-300;
   }
 
+  .btn-ghost {
+    @apply bg-transparent hover:bg-surface text-white font-medium py-2 px-4 rounded-lg transition-all duration-300;
+  }
+
+  /* Input Styles */
   .input {
-    @apply bg-surface border border-gray-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:border-primary;
+    @apply bg-surface border border-border text-white rounded-lg px-4 py-2.5;
+    @apply focus:outline-none focus:border-primary focus:shadow-glow-purple;
+    @apply placeholder:text-text-secondary transition-all duration-300;
   }
 
+  /* Card Styles with Glassmorphism */
   .card {
-    @apply bg-surface rounded-xl p-6 shadow-lg;
+    @apply bg-surface/80 backdrop-blur-xl rounded-xl p-6 shadow-lg border border-border/50;
+    @apply hover:border-primary/30 hover:shadow-glow-purple transition-all duration-300;
+  }
+
+  .card-highlight {
+    @apply bg-gradient-to-br from-surface to-surface-hover rounded-xl p-6 shadow-lg border border-primary/20;
+    @apply hover:shadow-glow-gradient transition-all duration-300;
+  }
+
+  /* Glassmorphism Navbar/Navigation */
+  .glass-nav {
+    @apply bg-surface/70 backdrop-blur-lg border-b border-border/50;
+  }
+
+  /* Swipe Card Animations */
+  @keyframes swipe-in {
+    from {
+      opacity: 0;
+      transform: scale(0.9) translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  .swipe-card {
+    @apply card shadow-glow-gradient;
+    animation: swipe-in 0.5s ease-out;
+  }
+
+  /* Gradient Text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent;
+  }
+
+  /* Match Animation */
+  @keyframes pulse-gradient {
+    0%, 100% {
+      box-shadow: 0 0 20px rgba(168, 85, 247, 0.4), 0 0 40px rgba(236, 72, 153, 0.2);
+    }
+    50% {
+      box-shadow: 0 0 30px rgba(168, 85, 247, 0.6), 0 0 60px rgba(236, 72, 153, 0.4);
+    }
+  }
+
+  .match-glow {
+    animation: pulse-gradient 2s ease-in-out infinite;
+  }
+
+  /* Loading Spinner */
+  @keyframes spin-gradient {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .spinner {
+    @apply w-8 h-8 border-4 border-border border-t-primary rounded-full;
+    animation: spin-gradient 1s linear infinite;
+  }
+
+  /* Focus Ring */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 focus:ring-offset-background;
+  }
+}
+
+@layer utilities {
+  /* Custom Scrollbar */
+  .scrollbar-custom::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-track {
+    background: var(--surface);
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 4px;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-hover);
   }
 }
