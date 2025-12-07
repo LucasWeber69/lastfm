@@ -125,7 +125,7 @@ async fn main() {
         .route("/matches", get(routes::matches::get_matches))
         .route("/matches/:id", delete(routes::matches::delete_match))
         .route("/photos", post(routes::photos::create_photo))
-        .route("/photos/:user_id", get(routes::photos::get_user_photos))
+        .route("/photos/user/:user_id", get(routes::photos::get_user_photos))
         .route("/photos/:id", delete(routes::photos::delete_photo))
         .route("/lastfm/connect", post(routes::lastfm::connect_lastfm))
         .route("/lastfm/sync", post(routes::lastfm::sync_scrobbles))
